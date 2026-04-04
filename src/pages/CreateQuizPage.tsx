@@ -33,9 +33,22 @@ export default function CreateQuizPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock save - would go to API
-    alert("Quiz created successfully! (Mock - data saved locally)");
-    navigate("/dashboard");
+
+    const newQuiz = {
+      id: `custom-${Date.now()}`,
+      title,
+      subject,
+      timeLimit,
+      xpReward,
+      teacherId: "t1",
+      createdAt: new Date().toISOString().split("T")[0],
+      questions: questions.map((q, i) => ({ ...q, id: `q-${Date.now()}-${i}` })),
+    };
+
+    const existing = JSON.parse(localStorage.getItem("vidyasetu_quizzes") || "[]");
+    localStorage.setItem("vidyasetu_quizzes", JSON.stringify([...existing, newQuiz]));
+
+    navigate("/quizzes");
   };
 
   return (

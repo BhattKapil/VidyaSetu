@@ -1,20 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MOCK_QUIZZES } from "@/lib/mockData";
+import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, CheckCircle2, XCircle, ArrowRight, Trophy } from "lucide-react";
 
 export default function QuizPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const quiz = MOCK_QUIZZES.find((q) => q.id === id);
+  const { updateXP } = useAuth();
+  const customQuizzes = JSON.parse(localStorage.getItem("vidyasetu_quizzes") || "[]");
+  const allQuizzes = [...MOCK_QUIZZES, ...customQuizzes];
+  const quiz = allQuizzes.find((q) => q.id === id);
+
   const [currentQ, setCurrentQ] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answered, setAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
   const [timeLeft, setTimeLeft] = useState((quiz?.timeLimit ?? 5) * 60);
+  const xpAwarded = useRef(false);
 
+  // Timer
   useEffect(() => {
     if (finished || !quiz) return;
     const t = setInterval(() => {
@@ -26,7 +33,17 @@ export default function QuizPage() {
     return () => clearInterval(t);
   }, [finished, quiz]);
 
-  if (!quiz) return <div className="p-8 text-center text-muted-foreground">Quiz not found</div>;
+  // Award XP exactly once when quiz finishes
+  useEffect(() => {
+    if (!finished || !quiz || xpAwarded.current) return;
+    xpAwarded.current = true;
+    const xpEarned = Math.round((score / quiz.questions.length) * quiz.xpReward);
+    if (xpEarned > 0) updateXP(xpEarned);
+  }, [finished]);
+
+  if (!quiz) return (
+    <div className="p-8 text-center text-muted-foreground">Quiz not found</div>
+  );
 
   const question = quiz.questions[currentQ];
   const total = quiz.questions.length;
@@ -53,7 +70,9 @@ export default function QuizPage() {
     return (
       <div className="container mx-auto px-4 py-12 max-w-lg text-center">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-          <span className="text-6xl block mb-4">{pct >= 80 ? "🎉" : pct >= 50 ? "👍" : "💪"}</span>
+          <span className="text-6xl block mb-4">
+            {pct >= 80 ? "🎉" : pct >= 50 ? "👍" : "💪"}
+          </span>
           <h1 className="text-3xl font-bold mb-2">Quiz Complete!</h1>
           <p className="text-muted-foreground mb-6">{quiz.title}</p>
           <div className="bg-card rounded-2xl border p-6 space-y-4">
@@ -63,7 +82,8 @@ export default function QuizPage() {
               <Trophy className="w-5 h-5" /> +{xpEarned} XP earned!
             </div>
           </div>
-          <button onClick={() => navigate("/dashboard")}
+          <button
+            onClick={() => navigate("/dashboard")}
             className="mt-6 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition">
             Back to Dashboard
           </button>
@@ -74,7 +94,6 @@ export default function QuizPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-2xl">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-lg font-bold">{quiz.title}</h1>
@@ -88,14 +107,19 @@ export default function QuizPage() {
         </div>
       </div>
 
-      {/* Progress bar */}
       <div className="w-full h-2 bg-muted rounded-full mb-6 overflow-hidden">
-        <motion.div className="h-full bg-primary rounded-full" animate={{ width: `${((currentQ + 1) / total) * 100}%` }} />
+        <motion.div
+          className="h-full bg-primary rounded-full"
+          animate={{ width: `${((currentQ + 1) / total) * 100}%` }}
+        />
       </div>
 
-      {/* Question */}
       <AnimatePresence mode="wait">
-        <motion.div key={currentQ} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+        <motion.div
+          key={currentQ}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}>
           <h2 className="text-xl font-bold mb-6">{question.text}</h2>
           <div className="space-y-3">
             {question.options.map((opt, i) => {
@@ -106,7 +130,10 @@ export default function QuizPage() {
                 else style = "bg-muted/50 border opacity-50";
               }
               return (
-                <button key={i} onClick={() => handleSelect(i)} disabled={answered}
+                <button
+                  key={i}
+                  onClick={() => handleSelect(i)}
+                  disabled={answered}
                   className={`w-full text-left p-4 rounded-xl border font-semibold transition flex items-center gap-3 ${style}`}>
                   <span className="w-8 h-8 rounded-full border flex items-center justify-center text-sm font-bold shrink-0">
                     {String.fromCharCode(65 + i)}
@@ -123,7 +150,8 @@ export default function QuizPage() {
 
       {answered && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 flex justify-end">
-          <button onClick={handleNext}
+          <button
+            onClick={handleNext}
             className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition">
             {currentQ + 1 >= total ? "Finish" : "Next"} <ArrowRight className="w-4 h-4" />
           </button>

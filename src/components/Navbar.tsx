@@ -28,6 +28,7 @@ export default function Navbar() {
     : user.role === "teacher"
     ? [
         { to: "/dashboard", label: "Dashboard" },
+        { to: "/quizzes", label: "Quizzes" },
         { to: "/create-quiz", label: "Create Quiz" },
         { to: "/live-quiz", label: "🔴 Live Quiz" },
         { to: "/notes", label: "Notes" },

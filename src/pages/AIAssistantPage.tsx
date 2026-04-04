@@ -53,34 +53,21 @@ Rules:
 - Keep responses under 300 words unless asked for more`;
 
 async function callClaude(messages: { role: string; content: string }[]): Promise<string> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) throw new Error("Gemini API key not found. Check your .env file.");
-
-  const contents = messages.slice(-MAX_HISTORY).map(m => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }]
-  }));
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents,
-        generationConfig: { maxOutputTokens: 1000 }
-      })
-    }
-  );
-
+  const response = await fetch("/api/ai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      system: SYSTEM_PROMPT,
+      messages: messages.slice(-MAX_HISTORY),
+    }),
+  });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `API error ${response.status}`);
+    throw new Error(err.error || `API error ${response.status}`);
   }
-
   const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "No response received.";
+  if (data.error) throw new Error(data.error);
+  return data.content;
 }
 
 const OFFLINE_RESPONSES: Record<string, string> = {
