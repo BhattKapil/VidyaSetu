@@ -8,7 +8,8 @@ import { Clock, CheckCircle2, XCircle, ArrowRight, Trophy } from "lucide-react";
 export default function QuizPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { updateXP } = useAuth();
+  const { updateXP, awardBadge } = useAuth();
+
   const customQuizzes = JSON.parse(localStorage.getItem("vidyasetu_quizzes") || "[]");
   const allQuizzes = [...MOCK_QUIZZES, ...customQuizzes];
   const quiz = allQuizzes.find((q) => q.id === id);
@@ -33,12 +34,39 @@ export default function QuizPage() {
     return () => clearInterval(t);
   }, [finished, quiz]);
 
-  // Award XP exactly once when quiz finishes
+  // Award XP and badges exactly once when quiz finishes
   useEffect(() => {
     if (!finished || !quiz || xpAwarded.current) return;
     xpAwarded.current = true;
-    const xpEarned = Math.round((score / quiz.questions.length) * quiz.xpReward);
+
+    const total = quiz.questions.length;
+    const xpEarned = Math.round((score / total) * quiz.xpReward);
     if (xpEarned > 0) updateXP(xpEarned);
+
+    // Badge: First Steps — complete any quiz
+    awardBadge("1");
+
+    // Badge: Speed Demon — finish with >50% time left
+    const totalTime = quiz.timeLimit * 60;
+    if (timeLeft > totalTime / 2) awardBadge("5");
+
+    // Badge: Night Owl — study after 10 PM
+    const hour = new Date().getHours();
+    if (hour >= 22) awardBadge("7");
+
+    // Badge: Brain Power — 50 correct answers total
+    const prevCorrect = parseInt(localStorage.getItem("vidyasetu_total_correct") || "0");
+    const newCorrect = prevCorrect + score;
+    localStorage.setItem("vidyasetu_total_correct", String(newCorrect));
+    if (newCorrect >= 50) awardBadge("4");
+
+    // Badge: Quiz Master — 5 perfect scores
+    if (score === total) {
+      const prevPerfect = parseInt(localStorage.getItem("vidyasetu_perfect_scores") || "0");
+      const newPerfect = prevPerfect + 1;
+      localStorage.setItem("vidyasetu_perfect_scores", String(newPerfect));
+      if (newPerfect >= 5) awardBadge("2");
+    }
   }, [finished]);
 
   if (!quiz) return (

@@ -49,13 +49,13 @@ export interface Badge {
 }
 
 export const BADGES: Badge[] = [
-  { id: "1", name: "First Steps", icon: "🎯", description: "Complete your first quiz", earned: true },
-  { id: "2", name: "Quiz Master", icon: "🏆", description: "Score 100% on 5 quizzes", earned: true },
+  { id: "1", name: "First Steps", icon: "🎯", description: "Complete your first quiz", earned: false },
+  { id: "2", name: "Quiz Master", icon: "🏆", description: "Score 100% on 5 quizzes", earned: false },
   { id: "3", name: "Streak King", icon: "🔥", description: "7-day study streak", earned: false },
-  { id: "4", name: "Brain Power", icon: "🧠", description: "Answer 100 questions correctly", earned: true },
+  { id: "4", name: "Brain Power", icon: "🧠", description: "Answer 100 questions correctly", earned: false },
   { id: "5", name: "Speed Demon", icon: "⚡", description: "Finish a timed quiz with >50% time left", earned: false },
   { id: "6", name: "Social Learner", icon: "🤝", description: "Help 5 classmates", earned: false },
-  { id: "7", name: "Night Owl", icon: "🦉", description: "Study after 10 PM", earned: true },
+  { id: "7", name: "Night Owl", icon: "🦉", description: "Study after 10 PM", earned: false },
   { id: "8", name: "Memory Champ", icon: "💎", description: "Win 3 memory match games", earned: false },
 ];
 

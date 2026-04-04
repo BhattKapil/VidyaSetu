@@ -199,7 +199,7 @@ function generateRecommendations(stats: StudyStats, xp: number, level: number): 
   } catch { /* skip */ }
 
   // 8. Badge progress
-  const unearnedBadge = BADGES.find(b => !b.earned);
+  const unearnedBadge = BADGES.find(b => !user.badges.includes(b.id));
   if (unearnedBadge) {
     recs.push({
       id: "badge-hunt",

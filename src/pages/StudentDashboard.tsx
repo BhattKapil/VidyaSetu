@@ -8,7 +8,7 @@ export default function StudentDashboard() {
   const { user } = useAuth();
   if (!user) return null;
 
-  const earnedBadges = BADGES.filter((b) => b.earned);
+  const earnedBadges = BADGES.filter((b) => user.badges.includes(b.id));
   const activeMissions = MOCK_MISSIONS.filter((m) => !m.completed);
 
   return (
@@ -129,7 +129,7 @@ export default function StudentDashboard() {
         <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
           {BADGES.map((b) => (
             <div key={b.id} className={`flex flex-col items-center p-3 rounded-xl border text-center transition ${
-              b.earned ? "bg-card" : "bg-muted/50 opacity-40"
+              user.badges.includes(b.id) ? "bg-card" : "bg-muted/50 opacity-40"
             }`}>
               <span className="text-2xl mb-1">{b.icon}</span>
               <span className="text-[10px] font-bold leading-tight">{b.name}</span>

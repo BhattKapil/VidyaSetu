@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { RotateCcw, Trophy, Timer } from "lucide-react";
 
@@ -12,6 +13,8 @@ interface Card {
 }
 
 export default function MemoryMatchPage() {
+  const { awardBadge } = useAuth();
+  const winAwarded = useRef(false);
   const [cards, setCards] = useState<Card[]>([]);
   const [flippedIds, setFlippedIds] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
@@ -47,7 +50,16 @@ export default function MemoryMatchPage() {
         setCards((c) => c.map((card) => card.id === a || card.id === b ? { ...card, matched: true } : card));
         setMatched((m) => {
           const next = m + 1;
-          if (next === EMOJIS.length) setGameOver(true);
+          if (next === EMOJIS.length) {
+        setGameOver(true);
+        if (!winAwarded.current) {
+          winAwarded.current = true;
+          const prevWins = parseInt(localStorage.getItem("vidyasetu_memory_wins") || "0");
+          const newWins = prevWins + 1;
+          localStorage.setItem("vidyasetu_memory_wins", String(newWins));
+          if (newWins >= 3) awardBadge("8");
+        }
+      }
           return next;
         });
         setFlippedIds([]);
