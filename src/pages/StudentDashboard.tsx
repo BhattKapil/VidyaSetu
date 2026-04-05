@@ -1,6 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
-import { MOCK_QUIZZES, MOCK_MISSIONS, BADGES, LEADERBOARD, getXPProgress } from "@/lib/mockData";
+import { MOCK_QUIZZES, MOCK_MISSIONS, BADGES, getXPProgress } from "@/lib/mockData";
+import { getLeaderboard } from "@/lib/store";
 import { Link } from "react-router-dom";
 import { Zap, Trophy, Flame, Target, BookOpen, Gamepad2, Brain, Sparkles, Radio } from "lucide-react";
 
@@ -148,7 +149,7 @@ export default function StudentDashboard() {
           <Link to="/leaderboard" className="text-xs text-primary font-semibold hover:underline">View All →</Link>
         </div>
         <div className="bg-card rounded-xl border divide-y">
-          {LEADERBOARD.slice(0, 5).map((l, i) => (
+          {getLeaderboard().slice(0, 5).map((l, i) => (
             <div key={i} className="flex items-center gap-3 px-4 py-3">
               <span className={`text-sm font-bold w-6 text-center ${i < 3 ? "text-secondary" : "text-muted-foreground"}`}>
                 {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { Role, User } from "@/lib/mockData";
 
+const API = "/api";
+
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
@@ -8,43 +10,36 @@ interface AuthContextType {
   logout: () => void;
   updateXP: (xpToAdd: number) => void;
   awardBadge: (badgeId: string) => void;
+  syncUser: (updates: Partial<User>) => void;
   isAuthenticated: boolean;
+  token: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const DEMO_USERS_DEFAULT: Record<string, User> = {
-  "admin@vidyasetu.com": { id: "a1", name: "Admin User", email: "admin@vidyasetu.com", role: "admin", xp: 0, level: 0, streak: 0, badges: [], avatar: "👨‍💼" },
-  "teacher@vidyasetu.com": { id: "t1", name: "Ms. Sharma", email: "teacher@vidyasetu.com", role: "teacher", xp: 0, level: 0, streak: 0, badges: [], avatar: "👩‍🏫" },
-  "student@vidyasetu.com": { id: "s1", name: "Aarav S.", email: "student@vidyasetu.com", role: "student", xp: 1250, level: 7, streak: 5, badges: ["1", "2", "4", "7"], avatar: "🧑‍🎓" },
-};
+function saveUser(user: User) {
+  sessionStorage.setItem("vidyasetu_user", JSON.stringify(user));
+  localStorage.setItem("vidyasetu_reg_" + user.email, JSON.stringify(user));
+}
 
 function updateStreak(user: User): User {
   const today = new Date().toISOString().split("T")[0];
   const lastLogin = localStorage.getItem("vidyasetu_last_login_" + user.email);
-
   if (!lastLogin) {
     localStorage.setItem("vidyasetu_last_login_" + user.email, today);
     return { ...user, streak: 1 };
   }
-
-  if (lastLogin === today) {
-    return user;
-  }
-
+  if (lastLogin === today) return user;
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().split("T")[0];
-
   localStorage.setItem("vidyasetu_last_login_" + user.email, today);
-
   if (lastLogin === yesterdayStr) {
     const newStreak = user.streak + 1;
     const updated = { ...user, streak: newStreak };
     if (newStreak >= 7) updated.badges = [...new Set([...updated.badges, "3"])];
     return updated;
   }
-
   return { ...user, streak: 1 };
 }
 
@@ -54,47 +49,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return saved ? JSON.parse(saved) : null;
   });
 
-  const login = useCallback(async (email: string, _password: string): Promise<boolean> => {
-    const defaultUser = DEMO_USERS_DEFAULT[email];
-    let userToLoad: User;
+  const [token, setToken] = useState<string | null>(() => {
+    return localStorage.getItem("vidyasetu_token");
+  });
 
-    if (defaultUser) {
-      const saved = localStorage.getItem("vidyasetu_reg_" + email);
-      userToLoad = saved ? JSON.parse(saved) : defaultUser;
-    } else {
-      const registered = localStorage.getItem("vidyasetu_reg_" + email);
-      if (!registered) return false;
-      userToLoad = JSON.parse(registered);
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+    // Try real backend first
+    try {
+      const res = await fetch(`${API}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const u = data.user as User;
+        setToken(data.token);
+        localStorage.setItem("vidyasetu_token", data.token);
+        localStorage.removeItem("vidyasetu_perfect_scores");
+        localStorage.removeItem("vidyasetu_total_correct");
+        saveUser(u);
+        setUser(u);
+        return true;
+      }
+    } catch {
+      // Backend offline — fall through to localStorage
     }
 
-    userToLoad = updateStreak(userToLoad);
-    localStorage.setItem("vidyasetu_reg_" + email, JSON.stringify(userToLoad));
-    sessionStorage.setItem("vidyasetu_user", JSON.stringify(userToLoad));
-    setUser(userToLoad);
-    return true;
+    // Fallback to localStorage
+    const saved = localStorage.getItem("vidyasetu_reg_" + email);
+    if (saved) {
+      let u = JSON.parse(saved) as User;
+      u = updateStreak(u);
+      saveUser(u);
+      setUser(u);
+      return true;
+    }
+    return false;
   }, []);
 
-  const register = useCallback(async (name: string, email: string, _password: string, role: Role): Promise<boolean> => {
+  const register = useCallback(async (name: string, email: string, password: string, role: Role): Promise<boolean> => {
+    // Try real backend first
+    try {
+      const res = await fetch(`${API}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, role }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const u = data.user as User;
+        setToken(data.token);
+        localStorage.setItem("vidyasetu_token", data.token);
+        saveUser(u);
+        setUser(u);
+        return true;
+      }
+    } catch {
+      // Backend offline — fall through to localStorage
+    }
+
+    // Fallback to localStorage
     const today = new Date().toISOString().split("T")[0];
     const newUser: User = {
       id: crypto.randomUUID(),
       name, email, role,
-      xp: 0,
-      level: 1,
-      streak: 1,
-      badges: [],
+      xp: 0, level: 1, streak: 1, badges: [],
       avatar: role === "student" ? "🧑‍🎓" : role === "teacher" ? "👩‍🏫" : "👨‍💼",
     };
     localStorage.setItem("vidyasetu_reg_" + email, JSON.stringify(newUser));
     localStorage.setItem("vidyasetu_last_login_" + email, today);
-    sessionStorage.setItem("vidyasetu_user", JSON.stringify(newUser));
+    saveUser(newUser);
     setUser(newUser);
     return true;
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
+    setToken(null);
     sessionStorage.removeItem("vidyasetu_user");
+    localStorage.removeItem("vidyasetu_token");
   }, []);
 
   const updateXP = useCallback((xpToAdd: number) => {
@@ -103,8 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const newXP = prev.xp + xpToAdd;
       const newLevel = Math.floor(newXP / 200) + 1;
       const updated = { ...prev, xp: newXP, level: newLevel };
-      sessionStorage.setItem("vidyasetu_user", JSON.stringify(updated));
-      localStorage.setItem("vidyasetu_reg_" + prev.email, JSON.stringify(updated));
+      saveUser(updated);
       return updated;
     });
   }, []);
@@ -114,14 +147,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!prev) return prev;
       if (prev.badges.includes(badgeId)) return prev;
       const updated = { ...prev, badges: [...prev.badges, badgeId] };
-      sessionStorage.setItem("vidyasetu_user", JSON.stringify(updated));
-      localStorage.setItem("vidyasetu_reg_" + prev.email, JSON.stringify(updated));
+      saveUser(updated);
+      const tok = localStorage.getItem("vidyasetu_token");
+      if (tok) {
+        fetch(`${API}/user/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
+          body: JSON.stringify({ xp: updated.xp, level: updated.level, badges: updated.badges }),
+        }).catch(() => {});
+      }
+      return updated;
+    });
+  }, []);
+
+  const syncUser = useCallback((updates: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...updates };
+      saveUser(updated);
       return updated;
     });
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateXP, awardBadge, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateXP, awardBadge, syncUser, isAuthenticated: !!user, token }}>
       {children}
     </AuthContext.Provider>
   );

@@ -8,7 +8,7 @@ import { Clock, CheckCircle2, XCircle, ArrowRight, Trophy } from "lucide-react";
 export default function QuizPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { updateXP, awardBadge } = useAuth();
+  const { updateXP, awardBadge, user, syncUser } = useAuth();
 
   const customQuizzes = JSON.parse(localStorage.getItem("vidyasetu_quizzes") || "[]");
   const allQuizzes = [...MOCK_QUIZZES, ...customQuizzes];
@@ -35,37 +35,78 @@ export default function QuizPage() {
   }, [finished, quiz]);
 
   // Award XP and badges exactly once when quiz finishes
+  // Award XP and badges exactly once when quiz finishes
   useEffect(() => {
     if (!finished || !quiz || xpAwarded.current) return;
     xpAwarded.current = true;
 
     const total = quiz.questions.length;
     const xpEarned = Math.round((score / total) * quiz.xpReward);
-    if (xpEarned > 0) updateXP(xpEarned);
+    const tok = localStorage.getItem("vidyasetu_token");
 
-    // Badge: First Steps — complete any quiz
-    awardBadge("1");
+    // Save result to localStorage for offline analytics
+    const existingResults = JSON.parse(localStorage.getItem("vidyasetu_quiz_results") || "[]");
+    existingResults.push({
+      quizId: quiz.id,
+      score,
+      total,
+      xpEarned,
+      userId: user?.id || "unknown",
+      date: new Date().toISOString().split("T")[0],
+    });
+    localStorage.setItem("vidyasetu_quiz_results", JSON.stringify(existingResults));
 
-    // Badge: Speed Demon — finish with >50% time left
-    const totalTime = quiz.timeLimit * 60;
-    if (timeLeft > totalTime / 2) awardBadge("5");
+    if (tok) {
+      // Online — let backend handle XP and badges
+      fetch("/api/quiz/result", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tok}`,
+        },
+        body: JSON.stringify({ quizId: quiz.id, score, total, xpEarned, date: new Date().toISOString().split("T")[0] }),
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.xp !== undefined) {
+          syncUser({ xp: data.xp, level: data.level, badges: data.badges });
+        }
+        // Speed Demon and Night Owl are time-based — handle on frontend
+        const totalTime = quiz.timeLimit * 60;
+        if (timeLeft > totalTime / 2) awardBadge("5");
+        const hour = new Date().getHours();
+        if (hour >= 22) awardBadge("7");
+      })
+      .catch(() => {
+        if (xpEarned > 0) updateXP(xpEarned);
+        awardBadge("1");
+        const totalTime = quiz.timeLimit * 60;
+        if (timeLeft > totalTime / 2) awardBadge("5");
+        const hour = new Date().getHours();
+        if (hour >= 22) awardBadge("7");
+      });
+    } else {
+      // Offline — handle everything locally
+      if (xpEarned > 0) updateXP(xpEarned);
+      awardBadge("1");
 
-    // Badge: Night Owl — study after 10 PM
-    const hour = new Date().getHours();
-    if (hour >= 22) awardBadge("7");
+      const totalTime = quiz.timeLimit * 60;
+      if (timeLeft > totalTime / 2) awardBadge("5");
 
-    // Badge: Brain Power — 50 correct answers total
-    const prevCorrect = parseInt(localStorage.getItem("vidyasetu_total_correct") || "0");
-    const newCorrect = prevCorrect + score;
-    localStorage.setItem("vidyasetu_total_correct", String(newCorrect));
-    if (newCorrect >= 50) awardBadge("4");
+      const hour = new Date().getHours();
+      if (hour >= 22) awardBadge("7");
 
-    // Badge: Quiz Master — 5 perfect scores
-    if (score === total) {
-      const prevPerfect = parseInt(localStorage.getItem("vidyasetu_perfect_scores") || "0");
-      const newPerfect = prevPerfect + 1;
-      localStorage.setItem("vidyasetu_perfect_scores", String(newPerfect));
-      if (newPerfect >= 5) awardBadge("2");
+      const prevCorrect = parseInt(localStorage.getItem("vidyasetu_total_correct") || "0");
+      const newCorrect = prevCorrect + score;
+      localStorage.setItem("vidyasetu_total_correct", String(newCorrect));
+      if (newCorrect >= 50) awardBadge("4");
+
+      if (score === total) {
+        const prevPerfect = parseInt(localStorage.getItem("vidyasetu_perfect_scores") || "0");
+        const newPerfect = prevPerfect + 1;
+        localStorage.setItem("vidyasetu_perfect_scores", String(newPerfect));
+        if (newPerfect >= 5) awardBadge("2");
+      }
     }
   }, [finished]);
 
