@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { RotateCcw, Trophy, Timer } from "lucide-react";
+import { toast } from "sonner";
 
 const EMOJIS = ["🧮", "🔬", "📐", "🌍", "📖", "🎨", "🧬", "⚡"];
 
@@ -13,7 +14,7 @@ interface Card {
 }
 
 export default function MemoryMatchPage() {
-  const { awardBadge } = useAuth();
+  const { awardBadge, updateXP } = useAuth();
   const winAwarded = useRef(false);
   const [cards, setCards] = useState<Card[]>([]);
   const [flippedIds, setFlippedIds] = useState<number[]>([]);
@@ -54,10 +55,15 @@ export default function MemoryMatchPage() {
         setGameOver(true);
         if (!winAwarded.current) {
           winAwarded.current = true;
+          updateXP(80);
           const prevWins = parseInt(localStorage.getItem("vidyasetu_memory_wins") || "0");
           const newWins = prevWins + 1;
           localStorage.setItem("vidyasetu_memory_wins", String(newWins));
-          if (newWins >= 3) awardBadge("8");
+          if (newWins >= 3) {
+            awardBadge("8");
+            toast.success("Memory Champ badge unlocked! 💎");
+          }
+          toast.success(`You won in ${moves + 1} moves! +80 XP 🎉`);
         }
       }
           return next;

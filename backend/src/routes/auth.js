@@ -5,12 +5,29 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
+function validatePassword(password) {
+  if (password.length < 8) return "Password must be at least 8 characters";
+  if (!/[A-Z]/.test(password)) return "Password must contain at least one uppercase letter";
+  if (!/[0-9]/.test(password)) return "Password must contain at least one number";
+  if (!/[!@#$%^&*]/.test(password)) return "Password must contain at least one special character (!@#$%^&*)";
+  return null;
+}
+
 router.post("/register", async (req, res) => {
   try {
     const SECRET = process.env.JWT_SECRET || "vidyasetu-secret";
     const { name, email, password, role } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) return res.status(400).json({ error: passwordError });
+
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ error: "Email already registered" });
+
     const hashed = await bcrypt.hash(password, 10);
     const avatar = role === "student" ? "🧑‍🎓" : role === "teacher" ? "👩‍🏫" : "👨‍💼";
     const user = await User.create({ name, email, password: hashed, role, avatar });
@@ -25,8 +42,14 @@ router.post("/login", async (req, res) => {
   try {
     const SECRET = process.env.JWT_SECRET || "vidyasetu-secret";
     const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: "Invalid email or password" });
+
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ error: "Invalid email or password" });
 

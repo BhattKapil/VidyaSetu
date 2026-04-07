@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { PlusCircle, Trash2, ArrowLeft } from "lucide-react";
 import { Question } from "@/lib/mockData";
+import { toast } from "sonner";
 
 export default function CreateQuizPage() {
   const navigate = useNavigate();
@@ -48,6 +49,7 @@ export default function CreateQuizPage() {
     const existing = JSON.parse(localStorage.getItem("vidyasetu_quizzes") || "[]");
     localStorage.setItem("vidyasetu_quizzes", JSON.stringify([...existing, newQuiz]));
 
+    toast.success("Quiz created successfully! ✏️");
     navigate("/quizzes");
   };
 

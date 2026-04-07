@@ -4,6 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Role } from "@/lib/mockData";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Login() {
   const { login } = useAuth();
@@ -20,15 +21,26 @@ export default function Login() {
     setLoading(true);
     const ok = await login(email, password);
     setLoading(false);
-    if (ok) navigate("/dashboard");
-    else setError("Invalid credentials. Try demo accounts below.");
+    if (ok) {
+      toast.success("Welcome back! 🎉");
+      navigate("/dashboard");
+    } else {
+      setError("Invalid credentials. Try demo accounts below.");
+      toast.error("Login failed. Check your credentials.");
+    }
   };
 
   const quickLogin = async (email: string) => {
     setLoading(true);
-    await login(email, "demo");
+    const passwords: Record<string, string> = {
+      "admin@vidyasetu.com": "Admin@123",
+      "teacher@vidyasetu.com": "Teacher@123",
+      "student@vidyasetu.com": "Student@123",
+    };
+    const ok = await login(email, passwords[email]);
     setLoading(false);
-    navigate("/dashboard");
+    if (ok) navigate("/dashboard");
+    else setError("Demo login failed. Please try again.");
   };
 
   return (

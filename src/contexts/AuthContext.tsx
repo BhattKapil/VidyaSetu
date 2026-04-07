@@ -72,17 +72,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(u);
         return true;
       }
+      // Backend responded but rejected — wrong password or user not found
+      // Do NOT fall through to localStorage
+      return false;
     } catch {
-      // Backend offline — fall through to localStorage
+      // Backend is offline (network error) — fall through to localStorage
     }
 
-    // Fallback to localStorage
+    // Fallback to localStorage (only reached if backend is offline)
     const saved = localStorage.getItem("vidyasetu_reg_" + email);
     if (saved) {
-      let u = JSON.parse(saved) as User;
-      u = updateStreak(u);
-      saveUser(u);
-      setUser(u);
+      const u = JSON.parse(saved) as User;
+      const isDemoAccount = ["student@vidyasetu.com", "teacher@vidyasetu.com", "admin@vidyasetu.com"].includes(email);
+      const savedPassword = localStorage.getItem("vidyasetu_pw_" + email);
+      if (!isDemoAccount && savedPassword && savedPassword !== password) {
+        return false;
+      }
+      let updated = u;
+      updated = updateStreak(updated);
+      saveUser(updated);
+      setUser(updated);
       return true;
     }
     return false;
@@ -101,12 +110,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const u = data.user as User;
         setToken(data.token);
         localStorage.setItem("vidyasetu_token", data.token);
+        localStorage.removeItem("vidyasetu_perfect_scores");
+        localStorage.removeItem("vidyasetu_total_correct");
         saveUser(u);
         setUser(u);
         return true;
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || "Registration failed");
       }
-    } catch {
-      // Backend offline — fall through to localStorage
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "";
+      // Only fall through to localStorage if backend is offline
+      if (message && message !== "Failed to fetch") {
+        return false;
+      }
     }
 
     // Fallback to localStorage
@@ -118,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       avatar: role === "student" ? "🧑‍🎓" : role === "teacher" ? "👩‍🏫" : "👨‍💼",
     };
     localStorage.setItem("vidyasetu_reg_" + email, JSON.stringify(newUser));
+    localStorage.setItem("vidyasetu_pw_" + email, password);
     localStorage.setItem("vidyasetu_last_login_" + email, today);
     saveUser(newUser);
     setUser(newUser);
