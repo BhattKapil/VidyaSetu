@@ -348,10 +348,38 @@ export default function VideosPage() {
   const [search, setSearch] = useState("");
   const [filterSubject, setFilterSubject] = useState("All");
 
-  const handleUpload = (v: UploadedVideo) => {
+  const handleUpload = async (v: UploadedVideo) => {
     const updated = [v, ...videos];
     setVideos(updated);
     saveVideos(updated);
+
+    const tok = localStorage.getItem("vidyasetu_token");
+    if (tok) {
+      try {
+        const res = await fetch("/api/email/notify-video", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${tok}`,
+          },
+          body: JSON.stringify({
+            videoTitle: v.title,
+            subject: v.subject,
+            teacherName: v.uploadedBy,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success(`Video uploaded! ${data.notified} students notified 📧`);
+        } else {
+          toast.success("Video uploaded successfully! 🎬");
+        }
+      } catch {
+        toast.success("Video uploaded successfully! 🎬");
+      }
+    } else {
+      toast.success("Video uploaded successfully! 🎬");
+    }
   };
 
   const handleDelete = (id: string) => {

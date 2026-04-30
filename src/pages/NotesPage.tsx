@@ -315,10 +315,38 @@ export default function NotesPage() {
   const [search, setSearch] = useState("");
   const [filterSubject, setFilterSubject] = useState("All");
 
-  const handleUpload = (note: UploadedNote) => {
+  const handleUpload = async (note: UploadedNote) => {
     const updated = [note, ...notes];
     setNotes(updated);
     saveNotes(updated);
+
+    const tok = localStorage.getItem("vidyasetu_token");
+    if (tok) {
+      try {
+        const res = await fetch("/api/email/notify-notes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${tok}`,
+          },
+          body: JSON.stringify({
+            noteTitle: note.title,
+            subject: note.subject,
+            teacherName: note.uploadedBy,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success(`Notes uploaded! ${data.notified} students notified 📧`);
+        } else {
+          toast.success("Notes uploaded successfully!");
+        }
+      } catch {
+        toast.success("Notes uploaded successfully!");
+      }
+    } else {
+      toast.success("Notes uploaded successfully!");
+    }
   };
 
   const handleDelete = (id: string) => {

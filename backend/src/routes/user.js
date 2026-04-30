@@ -14,6 +14,30 @@ router.get("/me", authMiddleware, async (req, res) => {
   }
 });
 
+router.get("/all", authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") return res.status(403).json({ error: "Admin only" });
+    const users = await User.find().select("-password").sort({ createdAt: -1 });
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/:id", authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") return res.status(403).json({ error: "Admin only" });
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.role === "admin") return res.status(400).json({ error: "Cannot delete admin" });
+    await User.findByIdAndDelete(req.params.id);
+    await QuizResult.deleteMany({ userId: req.params.id });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/leaderboard", async (req, res) => {
   try {
     const users = await User.find({ role: "student" })

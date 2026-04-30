@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.js";
 import quizRoutes from "./routes/quiz.js";
 import userRoutes from "./routes/user.js";
 import aiRoutes from "./routes/ai.js";
+import emailRoutes from "./routes/email.js";
 
 dotenv.config({ path: "../.env" });
 
@@ -31,6 +32,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/email", emailRoutes);
 
 app.get("/api/health", (_, res) => res.json({ status: "ok" }));
 
