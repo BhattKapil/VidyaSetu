@@ -71,7 +71,7 @@ function getStudyStats(xp: number, streak: number): StudyStats {
 }
 
 // ─── Generate recommendations ─────────────────────────────────────────────────
-function generateRecommendations(stats: StudyStats, xp: number, level: number): Recommendation[] {
+function generateRecommendations(stats: StudyStats, xp: number, level: number, userBadges: string[]): Recommendation[] {
   const recs: Recommendation[] = [];
 
   // 1. Weak subject quiz
@@ -199,7 +199,7 @@ function generateRecommendations(stats: StudyStats, xp: number, level: number): 
   } catch { /* skip */ }
 
   // 8. Badge progress
-  const unearnedBadge = BADGES.find(b => !user.badges.includes(b.id));
+  const unearnedBadge = BADGES.find(b => !userBadges.includes(b.id));
   if (unearnedBadge) {
     recs.push({
       id: "badge-hunt",
@@ -279,21 +279,19 @@ function RecCard({ rec, index }: { rec: Recommendation; index: number }) {
 async function getAIRec(stats: StudyStats, userName: string, isOnline: boolean): Promise<string> {
   if (!isOnline) return "";
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 200,
+        system: "You are a helpful study coach for Indian school students. Be warm, encouraging and brief.",
         messages: [{
           role: "user",
-          content: `Student: ${userName}, Level progress, weak subjects: ${stats.weakSubjects.join(", ")}, strong: ${stats.strongSubjects.join(", ")}, streak: ${stats.streakDays} days, avg score: ${Math.round(stats.avgScore)}%. 
-Give a single SHORT, personalized, motivating study tip (2-3 sentences max). Be warm and encouraging. No lists. Just a personal message.`,
+          content: `Student: ${userName}, weak subjects: ${stats.weakSubjects.join(", ")}, strong: ${stats.strongSubjects.join(", ")}, streak: ${stats.streakDays} days, avg score: ${Math.round(stats.avgScore)}%. Give a single SHORT personalized motivating study tip (2-3 sentences max). No lists. Just a personal message.`,
         }],
       }),
     });
     const data = await res.json();
-    return data.content?.[0]?.text || "";
+    return data.content || "";
   } catch { return ""; }
 }
 
@@ -311,7 +309,7 @@ export default function RecommendationsPage() {
     if (!user) return;
     const s = getStudyStats(user.xp, user.streak);
     setStats(s);
-    setRecs(generateRecommendations(s, user.xp, user.level));
+    setRecs(generateRecommendations(s, user.xp, user.level, user.badges));
 
     // Fetch AI personalized tip
     if (isOnline) {

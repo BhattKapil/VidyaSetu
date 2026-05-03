@@ -54,7 +54,8 @@ export default function QuizPage() {
       userId: user?.id || "unknown",
       date: new Date().toISOString().split("T")[0],
     });
-    localStorage.setItem("vidyasetu_quiz_results", JSON.stringify(existingResults));
+    localStorage.setItem(`vidyasetu_quiz_results_${user?.id}`, JSON.stringify(existingResults));
+    localStorage.setItem("vidyasetu_quiz_results", JSON.stringify(existingResults)); // keep for analytics
 
     if (tok) {
       // Online — let backend handle XP and badges
@@ -66,25 +67,28 @@ export default function QuizPage() {
         },
         body: JSON.stringify({ quizId: quiz.id, score, total, xpEarned, date: new Date().toISOString().split("T")[0] }),
       })
-      .then(res => res.json())
-      .then(data => {
-        if (data.xp !== undefined) {
-          syncUser({ xp: data.xp, level: data.level, badges: data.badges });
-        }
-        // Speed Demon and Night Owl are time-based — handle on frontend
-        const totalTime = quiz.timeLimit * 60;
-        if (timeLeft > totalTime / 2) awardBadge("5");
-        const hour = new Date().getHours();
-        if (hour >= 22) awardBadge("7");
-      })
-      .catch(() => {
-        if (xpEarned > 0) updateXP(xpEarned);
-        awardBadge("1");
-        const totalTime = quiz.timeLimit * 60;
-        if (timeLeft > totalTime / 2) awardBadge("5");
-        const hour = new Date().getHours();
-        if (hour >= 22) awardBadge("7");
-      });
+        .then(res => res.json())
+        .then(data => {
+          if (data.xp !== undefined) {
+            syncUser({ xp: data.xp, level: data.level, badges: data.badges });
+          }
+          // Speed Demon and Night Owl are time-based — handle on frontend
+          const totalTime = quiz.timeLimit * 60;
+          if (timeLeft > totalTime / 2) {
+            awardBadge("5");
+            localStorage.setItem(`vidyasetu_speed_challenge_${user?.id}`, "true");
+          }
+          const hour = new Date().getHours();
+          if (hour >= 22) awardBadge("7");
+        })
+        .catch(() => {
+          if (xpEarned > 0) updateXP(xpEarned);
+          awardBadge("1");
+          const totalTime = quiz.timeLimit * 60;
+          if (timeLeft > totalTime / 2) awardBadge("5");
+          const hour = new Date().getHours();
+          if (hour >= 22) awardBadge("7");
+        });
     } else {
       // Offline — handle everything locally
       if (xpEarned > 0) updateXP(xpEarned);
@@ -168,9 +172,8 @@ export default function QuizPage() {
           <h1 className="text-lg font-bold">{quiz.title}</h1>
           <p className="text-xs text-muted-foreground">Question {currentQ + 1} of {total}</p>
         </div>
-        <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold ${
-          timeLeft < 60 ? "bg-destructive/20 text-destructive" : "bg-muted text-muted-foreground"
-        }`}>
+        <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold ${timeLeft < 60 ? "bg-destructive/20 text-destructive" : "bg-muted text-muted-foreground"
+          }`}>
           <Clock className="w-4 h-4" />
           {mins}:{secs.toString().padStart(2, "0")}
         </div>

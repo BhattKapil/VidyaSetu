@@ -36,9 +36,7 @@ export function getAllQuizzes() {
 // ── Get leaderboard (real users + mock fallback) ──────────────────────────────
 export function getLeaderboard() {
   const realUsers = getAllUsers().filter((u) => u.role === "student");
-
   if (realUsers.length === 0) return LEADERBOARD;
-
   return realUsers
     .map((u) => ({
       name: u.name,

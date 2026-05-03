@@ -14,7 +14,7 @@ interface Card {
 }
 
 export default function MemoryMatchPage() {
-  const { awardBadge, updateXP } = useAuth();
+  const { awardBadge, updateXP, user } = useAuth();
   const winAwarded = useRef(false);
   const [cards, setCards] = useState<Card[]>([]);
   const [flippedIds, setFlippedIds] = useState<number[]>([]);
@@ -52,20 +52,21 @@ export default function MemoryMatchPage() {
         setMatched((m) => {
           const next = m + 1;
           if (next === EMOJIS.length) {
-        setGameOver(true);
-        if (!winAwarded.current) {
-          winAwarded.current = true;
-          updateXP(80);
-          const prevWins = parseInt(localStorage.getItem("vidyasetu_memory_wins") || "0");
-          const newWins = prevWins + 1;
-          localStorage.setItem("vidyasetu_memory_wins", String(newWins));
-          if (newWins >= 3) {
-            awardBadge("8");
-            toast.success("Memory Champ badge unlocked! 💎");
+            setGameOver(true);
+            if (!winAwarded.current) {
+              winAwarded.current = true;
+              updateXP(80);
+              const prevWins = parseInt(localStorage.getItem(`vidyasetu_memory_wins_${user?.id}`) || "0");
+              const newWins = prevWins + 1;
+              localStorage.setItem(`vidyasetu_memory_wins_${user?.id}`, String(newWins));
+              localStorage.setItem("vidyasetu_memory_wins", String(newWins));
+              if (newWins >= 3) {
+                awardBadge("8");
+                toast.success("Memory Champ badge unlocked! 💎");
+              }
+              toast.success(`You won in ${moves + 1} moves! +80 XP 🎉`);
+            }
           }
-          toast.success(`You won in ${moves + 1} moves! +80 XP 🎉`);
-        }
-      }
           return next;
         });
         setFlippedIds([]);
@@ -117,11 +118,10 @@ export default function MemoryMatchPage() {
               key={card.id}
               onClick={() => handleFlip(card.id)}
               whileTap={{ scale: 0.95 }}
-              className={`aspect-square rounded-xl text-3xl font-bold flex items-center justify-center transition-all duration-300 ${
-                card.flipped || card.matched
-                  ? "bg-card border-2 border-primary"
-                  : "bg-primary text-primary-foreground hover:opacity-90"
-              } ${card.matched ? "opacity-50" : ""}`}
+              className={`aspect-square rounded-xl text-3xl font-bold flex items-center justify-center transition-all duration-300 ${card.flipped || card.matched
+                ? "bg-card border-2 border-primary"
+                : "bg-primary text-primary-foreground hover:opacity-90"
+                } ${card.matched ? "opacity-50" : ""}`}
             >
               {card.flipped || card.matched ? card.emoji : "?"}
             </motion.button>

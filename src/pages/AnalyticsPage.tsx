@@ -17,7 +17,7 @@ function useAnalytics() {
     try {
       const stored = JSON.parse(localStorage.getItem("vidyasetu_quiz_results") || "[]");
       results.push(...stored);
-    } catch {}
+    } catch { }
 
     // Subject performance from real results
     const subjectMap: Record<string, { total: number; count: number; attempts: number }> = {};
